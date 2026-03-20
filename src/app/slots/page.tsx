@@ -1,8 +1,10 @@
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { AvailableSlot, SlotStatus } from '@/types';
-import { format } from 'date-fns';
+import { format, toZonedTime } from 'date-fns-tz';
 import { ja } from 'date-fns/locale';
+
+const JST = 'Asia/Tokyo';
 
 const TABS: { label: string; value: SlotStatus | 'all' }[] = [
   { label: 'すべて', value: 'all' },
@@ -87,8 +89,8 @@ export default async function SlotsPage({
       ) : (
         <div className="space-y-3">
           {slots.map((slot) => {
-            const from = format(new Date(slot.available_from), 'M/d HH:mm', { locale: ja });
-            const until = format(new Date(slot.available_until), 'M/d HH:mm', { locale: ja });
+            const from = format(toZonedTime(new Date(slot.available_from), JST), 'M/d HH:mm', { locale: ja });
+            const until = format(toZonedTime(new Date(slot.available_until), JST), 'M/d HH:mm', { locale: ja });
             return (
               <div
                 key={slot.id}

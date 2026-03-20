@@ -55,14 +55,19 @@ export default function NewShipmentPage() {
     setSubmitting(true);
     setError('');
     try {
+      // datetime-local の値はTZなし文字列なのでJST (+09:00) として解釈させる
+      const pickupTimeJst = form.pickup_time ? `${form.pickup_time}:00+09:00` : '';
+      const payload = {
+        ...form,
+        pickup_time: pickupTimeJst,
+        cargo_type_id: Number(form.cargo_type_id),
+        weight_kg: Number(form.weight_kg),
+      };
+      console.log('[shipments/new] POST /api/shipments', payload);
       const res = await fetch('/api/shipments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          cargo_type_id: Number(form.cargo_type_id),
-          weight_kg: Number(form.weight_kg),
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const body = await res.json();

@@ -1,8 +1,10 @@
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { Match } from '@/types';
-import { format } from 'date-fns';
+import { format, toZonedTime } from 'date-fns-tz';
 import { ja } from 'date-fns/locale';
+
+const JST = 'Asia/Tokyo';
 
 async function getStats() {
   const supabase = createServiceRoleClient();
@@ -82,7 +84,7 @@ function StatCard({
 
 function MatchCard({ match }: { match: Match }) {
   const pickupTime = match.shipment?.pickup_time
-    ? format(new Date(match.shipment.pickup_time), 'M/d HH:mm', { locale: ja })
+    ? format(toZonedTime(new Date(match.shipment.pickup_time), JST), 'M/d HH:mm', { locale: ja })
     : '—';
 
   return (

@@ -1,8 +1,10 @@
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import Link from 'next/link';
 import { Shipment, ShipmentStatus } from '@/types';
-import { format } from 'date-fns';
+import { format, toZonedTime } from 'date-fns-tz';
 import { ja } from 'date-fns/locale';
+
+const JST = 'Asia/Tokyo';
 
 const STATUS_LABELS: Record<ShipmentStatus, string> = {
   waiting: '未マッチ',
@@ -46,7 +48,7 @@ export default async function ShipmentsPage() {
       ) : (
         <div className="space-y-3">
           {shipments.map((shipment) => {
-            const pickup = format(new Date(shipment.pickup_time), 'M/d HH:mm', { locale: ja });
+            const pickup = format(toZonedTime(new Date(shipment.pickup_time), JST), 'M/d HH:mm', { locale: ja });
             return (
               <div
                 key={shipment.id}

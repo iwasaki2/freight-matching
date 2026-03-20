@@ -63,11 +63,14 @@ export default function NewSlotPage() {
     setSubmitting(true);
     setError('');
     try {
+      const toJst = (dt: string) => (dt ? `${dt}:00+09:00` : '');
       const res = await fetch('/api/slots', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          available_from: toJst(form.available_from),
+          available_until: toJst(form.available_until),
           available_load_kg: Number(form.available_load_kg),
           cargo_type_ids: selectedCargo,
         }),

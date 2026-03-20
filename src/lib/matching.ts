@@ -28,6 +28,7 @@ function scoreSlot(slot: AvailableSlot, shipment: Shipment): number {
 }
 
 export async function findAndCreateMatches(shipmentId: string): Promise<Match[]> {
+  console.log('[matching] findAndCreateMatches called:', shipmentId);
   const supabase = createServiceRoleClient();
 
   // Fetch shipment
@@ -37,11 +38,22 @@ export async function findAndCreateMatches(shipmentId: string): Promise<Match[]>
     .eq('id', shipmentId)
     .single();
 
-  if (shipmentErr || !shipment) throw new Error(`Shipment not found: ${shipmentId}`);
+  if (shipmentErr || !shipment) {
+    console.error('[matching] Shipment fetch error:', shipmentErr?.message);
+    throw new Error(`Shipment not found: ${shipmentId}`);
+  }
+  console.log('[matching] Shipment:', {
+    id: shipment.id,
+    prefecture: shipment.prefecture,
+    pickup_time: shipment.pickup_time,
+    weight_kg: shipment.weight_kg,
+    cargo_type_id: shipment.cargo_type_id,
+  });
 
   const pickupTime = new Date(shipment.pickup_time);
   const windowStart = subMinutes(pickupTime, MATCH_WINDOW_MINUTES).toISOString();
   const windowEnd = addMinutes(pickupTime, MATCH_WINDOW_MINUTES).toISOString();
+  console.log('[matching] Time window:', { windowStart, windowEnd });
 
   // Fetch candidate slots
   const { data: slots, error: slotsErr } = await supabase
@@ -53,7 +65,13 @@ export async function findAndCreateMatches(shipmentId: string): Promise<Match[]>
     .gte('available_from', windowStart)
     .lte('available_from', windowEnd);
 
-  if (slotsErr) throw new Error(`Slot query failed: ${slotsErr.message}`);
+  if (slotsErr) {
+    console.error('[matching] Slot query error:', slotsErr.message);
+    throw new Error(`Slot query failed: ${slotsErr.message}`);
+  }
+  console.log(`[matching] Candidate slots found: ${slots?.length ?? 0}`);
+  console.log('[matching] Raw slots:', JSON.stringify(slots, null, 2));
+
   if (!slots || slots.length === 0) return [];
 
   // Normalize cargo_types nested structure from join
@@ -68,6 +86,12 @@ export async function findAndCreateMatches(shipmentId: string): Promise<Match[]>
     .sort((a, b) => b.score - a.score)
     .slice(0, TOP_MATCHES);
 
+  console.log('[matching] Scores:', scored.map(({ slot, score }) => ({
+    slot_id: slot.id,
+    driver: slot.driver?.name,
+    score,
+  })));
+
   // Insert pending matches
   const inserts = scored.map(({ slot, score }) => ({
     slot_id: slot.id,
@@ -81,7 +105,11 @@ export async function findAndCreateMatches(shipmentId: string): Promise<Match[]>
     .insert(inserts)
     .select();
 
-  if (insertErr) throw new Error(`Match insert failed: ${insertErr.message}`);
+  if (insertErr) {
+    console.error('[matching] Match insert error:', insertErr.message);
+    throw new Error(`Match insert failed: ${insertErr.message}`);
+  }
+  console.log(`[matching] Matches created: ${created?.length ?? 0}`);
   return created as Match[];
 }
 
