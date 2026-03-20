@@ -3,6 +3,7 @@ import { Match } from '@/types';
 import { MatchActionButton } from '@/components/MatchActionButton';
 import { format, toZonedTime } from 'date-fns-tz';
 import { ja } from 'date-fns/locale';
+import Link from 'next/link';
 
 const JST = 'Asia/Tokyo';
 
@@ -39,20 +40,73 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-800">ダッシュボード</h1>
-
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="確認待ちマッチング" value={stats.pendingCount} color="bg-yellow-50 border-yellow-300" />
-        <StatCard label="未マッチ荷物" value={stats.waitingCount} color="bg-red-50 border-red-300" />
-        <StatCard label="空車スロット" value={stats.openCount} color="bg-green-50 border-green-300" />
+      {/* Page header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">ダッシュボード</h1>
+        <p className="text-sm text-slate-500 mt-1">配車マッチングの状況を確認できます</p>
       </div>
 
-      {/* Pending matches list */}
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          label="確認待ちマッチング"
+          value={stats.pendingCount}
+          icon="🔔"
+          color="bg-amber-50 border-amber-200"
+          valueColor="text-amber-700"
+          href="/dashboard"
+        />
+        <StatCard
+          label="未マッチ荷物"
+          value={stats.waitingCount}
+          icon="📦"
+          color="bg-red-50 border-red-200"
+          valueColor="text-red-700"
+          href="/shipments?status=waiting"
+        />
+        <StatCard
+          label="空車スロット"
+          value={stats.openCount}
+          icon="🚛"
+          color="bg-green-50 border-green-200"
+          valueColor="text-green-700"
+          href="/slots?status=open"
+        />
+      </div>
+
+      {/* Quick actions */}
+      <div className="flex flex-wrap gap-3">
+        <Link
+          href="/slots/new"
+          className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
+        >
+          <span>＋</span> 空車を登録
+        </Link>
+        <Link
+          href="/shipments/new"
+          className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
+        >
+          <span>＋</span> 荷物を登録
+        </Link>
+      </div>
+
+      {/* Pending matches */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">確認待ちマッチング一覧</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-700">確認待ちマッチング</h2>
+          {matches.length > 0 && (
+            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">
+              {matches.length} 件
+            </span>
+          )}
+        </div>
+
         {matches.length === 0 ? (
-          <p className="text-gray-500 text-sm">確認待ちのマッチングはありません。</p>
+          <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
+            <p className="text-4xl mb-3">✅</p>
+            <p className="text-slate-600 font-medium">確認待ちのマッチングはありません</p>
+            <p className="text-slate-400 text-sm mt-1">新しい荷物・空車を登録するとマッチングが始まります</p>
+          </div>
         ) : (
           <div className="space-y-3">
             {matches.map((match) => (
@@ -66,44 +120,76 @@ export default async function DashboardPage() {
 }
 
 function StatCard({
-  label,
-  value,
-  color,
+  label, value, icon, color, valueColor, href,
 }: {
-  label: string;
-  value: number;
-  color: string;
+  label: string; value: number; icon: string;
+  color: string; valueColor: string; href: string;
 }) {
   return (
-    <div className={`rounded-lg border p-5 ${color}`}>
-      <p className="text-sm text-gray-600">{label}</p>
-      <p className="text-3xl font-bold text-gray-800 mt-1">{value}</p>
-    </div>
+    <Link href={href} className={`block rounded-xl border p-5 hover:shadow-md transition-shadow ${color}`}>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-slate-600">{label}</p>
+        <span className="text-2xl">{icon}</span>
+      </div>
+      <p className={`text-4xl font-bold mt-2 ${valueColor}`}>{value}</p>
+      <p className="text-xs text-slate-400 mt-1">タップして一覧を見る</p>
+    </Link>
   );
 }
 
 function MatchCard({ match }: { match: Match }) {
   const pickupTime = match.shipment?.pickup_time
-    ? format(toZonedTime(new Date(match.shipment.pickup_time), JST), 'M/d HH:mm', { locale: ja })
+    ? format(toZonedTime(new Date(match.shipment.pickup_time), JST), 'M月d日 HH:mm', { locale: ja })
     : '—';
 
+  const score = match.score ?? 0;
+  const scoreColor =
+    score >= 70 ? 'text-green-600 bg-green-50' :
+    score >= 40 ? 'text-amber-600 bg-amber-50' :
+                  'text-slate-500 bg-slate-100';
+
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
-      <div className="space-y-0.5 text-sm">
-        <p className="font-medium text-gray-800">
-          {match.shipment?.cargo_type?.icon} {match.shipment?.cargo_type?.name ?? '—'} /{' '}
-          {match.shipment?.prefecture} → {match.shipment?.destination}
-        </p>
-        <p className="text-gray-500">
-          集荷: {pickupTime} ／ ドライバー: {match.slot?.driver?.name ?? '—'} ／ スコア:{' '}
-          {match.score?.toFixed(1) ?? '—'}
-        </p>
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+      {/* Card header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <span>{match.shipment?.cargo_type?.icon}</span>
+          <span>{match.shipment?.cargo_type?.name ?? '—'}</span>
+          <span className="text-slate-400 font-normal">|</span>
+          <span className="text-slate-500 font-normal text-xs">集荷: {pickupTime}</span>
+        </div>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${scoreColor}`}>
+          スコア {score.toFixed(0)}
+        </span>
       </div>
-      <div className="flex gap-2 shrink-0">
-        <MatchActionButton matchId={match.id} action="confirm" label="確定" variant="primary" />
-        <MatchActionButton matchId={match.id} action="cancel" label="却下" variant="danger" />
+
+      {/* Card body */}
+      <div className="px-4 py-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          {/* Route */}
+          <div className="space-y-1">
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">ルート</p>
+            <p className="font-semibold text-slate-800">
+              {match.shipment?.prefecture} → {match.shipment?.destination}
+            </p>
+            <p className="text-slate-500 text-xs">荷主: {match.shipment?.shipper?.company ?? '—'}</p>
+          </div>
+          {/* Driver */}
+          <div className="space-y-1">
+            <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">ドライバー / 車両</p>
+            <p className="font-semibold text-slate-800">{match.slot?.driver?.name ?? '—'}</p>
+            <p className="text-slate-500 text-xs">
+              {match.slot?.vehicle?.plate_number ?? '—'} ({match.slot?.vehicle?.vehicle_type ?? '—'})
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100">
+          <MatchActionButton matchId={match.id} action="confirm" label="確定する" variant="primary" />
+          <MatchActionButton matchId={match.id} action="cancel" label="却下する" variant="danger" />
+        </div>
       </div>
     </div>
   );
 }
-
