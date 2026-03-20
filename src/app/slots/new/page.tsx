@@ -18,35 +18,34 @@ const PREFECTURES = [
 
 function Spinner() {
   return (
-    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+    <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
     </svg>
   );
 }
 
+const inputCls = 'w-full px-3 py-2.5 text-base text-white bg-transparent focus:outline-none focus:ring-0 placeholder:text-slate-600';
+const wrapCls = 'border border-slate-600 focus-within:border-amber-500 transition-colors';
+const selectCls = `${inputCls} appearance-none`;
+
 export default function NewSlotPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [drivers, setDrivers] = useState<User[]>([]);
+  const [vehicles, setVehicles]     = useState<Vehicle[]>([]);
+  const [drivers, setDrivers]       = useState<User[]>([]);
   const [cargoTypes, setCargoTypes] = useState<CargoType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [error, setError]           = useState('');
+  const [success, setSuccess]       = useState(false);
+  const [selectedCargo, setSelectedCargo] = useState<number[]>([]);
 
   const [form, setForm] = useState({
-    vehicle_id: '',
-    driver_id: '',
-    prefecture: '',
-    available_from: '',
-    available_until: '',
-    available_load_kg: '',
-    note: '',
+    vehicle_id: '', driver_id: '', prefecture: '',
+    available_from: '', available_until: '', available_load_kg: '', note: '',
   });
-  const [selectedCargo, setSelectedCargo] = useState<number[]>([]);
 
   useEffect(() => {
     Promise.all([
@@ -57,18 +56,16 @@ export default function NewSlotPage() {
       setVehicles((v.data ?? []) as Vehicle[]);
       setDrivers((d.data ?? []) as User[]);
       setCargoTypes((c.data ?? []) as CargoType[]);
-      setLoading(false);
+      setDataLoading(false);
     });
   }, [supabase]);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  function set(name: string, value: string) {
+    setForm((p) => ({ ...p, [name]: value }));
   }
 
   function toggleCargo(id: number) {
-    setSelectedCargo((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setSelectedCargo((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -76,7 +73,7 @@ export default function NewSlotPage() {
     setSubmitting(true);
     setError('');
     try {
-      const toJst = (dt: string) => (dt ? `${dt}:00+09:00` : '');
+      const toJst = (dt: string) => dt ? `${dt}:00+09:00` : '';
       const res = await fetch('/api/slots', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -88,12 +85,9 @@ export default function NewSlotPage() {
           cargo_type_ids: selectedCargo,
         }),
       });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error ?? 'エラーが発生しました');
-      }
+      if (!res.ok) { const b = await res.json(); throw new Error(b.error ?? 'エラー'); }
       setSuccess(true);
-      setTimeout(() => router.push('/slots'), 1200);
+      setTimeout(() => router.push('/slots'), 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
@@ -101,164 +95,160 @@ export default function NewSlotPage() {
     }
   }
 
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
+        <Spinner /><span>読み込み中…</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/slots" className="text-slate-400 hover:text-slate-600 transition-colors">
-          ← 戻る
+    <div className="max-w-2xl space-y-8">
+      {/* Page header */}
+      <div className="flex items-center gap-4" style={{ borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
+        <Link href="/slots" className="text-sm font-medium transition-colors" style={{ color: '#64748b' }}>
+          ← 空車一覧
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">空車登録</h1>
-          <p className="text-sm text-slate-500 mt-0.5">空きトラック情報を登録してマッチングを開始します</p>
-        </div>
+        <h1 className="text-2xl font-bold text-white">空車登録</h1>
       </div>
 
-      {/* Success banner */}
+      {/* Feedback */}
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
-          <span className="text-xl">✅</span>
-          <p className="font-semibold">登録完了！一覧ページへ移動します…</p>
+        <div className="px-4 py-3 text-sm font-bold" style={{ backgroundColor: '#064e3b', color: '#34d399', border: '1px solid #065f46' }}>
+          ✓ 登録完了。一覧へ移動します…
         </div>
       )}
-
-      {/* Error banner */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-red-700">
-          <span className="text-xl shrink-0">⚠️</span>
-          <div>
-            <p className="font-semibold">登録に失敗しました</p>
-            <p className="text-sm mt-0.5">{error}</p>
-          </div>
+        <div className="px-4 py-3 text-sm" style={{ backgroundColor: '#1c0a0a', color: '#f87171', border: '1px solid #7f1d1d' }}>
+          ⚠ {error}
         </div>
       )}
 
-      {/* Form */}
-      {loading ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-10 flex items-center justify-center gap-3 text-slate-500">
-          <Spinner /><span>読み込み中…</span>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
-          {/* Section: 車両・ドライバー */}
-          <div className="p-6 space-y-5">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">車両 / ドライバー</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="車両" required>
-                <select name="vehicle_id" value={form.vehicle_id} onChange={handleChange} required className={selectCls}>
-                  <option value="">選択してください</option>
-                  {vehicles.map((v) => (
-                    <option key={v.id} value={v.id}>{v.plate_number} — {v.vehicle_type}</option>
-                  ))}
-                </select>
-                {vehicles.length === 0 && <p className="text-xs text-amber-600 mt-1">車両が登録されていません</p>}
-              </Field>
-              <Field label="ドライバー" required>
-                <select name="driver_id" value={form.driver_id} onChange={handleChange} required className={selectCls}>
-                  <option value="">選択してください</option>
-                  {drivers.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
-                  ))}
-                </select>
-                {drivers.length === 0 && <p className="text-xs text-amber-600 mt-1">ドライバーが登録されていません</p>}
-              </Field>
-            </div>
-          </div>
+      <form onSubmit={handleSubmit} className="space-y-0" style={{ border: '1px solid #334155' }}>
 
-          {/* Section: 空き情報 */}
-          <div className="p-6 space-y-5">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">空き情報</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="都道府県" required>
-                <select name="prefecture" value={form.prefecture} onChange={handleChange} required className={selectCls}>
-                  <option value="">選択してください</option>
-                  {PREFECTURES.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </Field>
-              <Field label="積載可能重量 (kg)" required>
-                <input type="number" name="available_load_kg" value={form.available_load_kg} onChange={handleChange} required min={1} placeholder="例: 2000" className={inputCls} />
-              </Field>
-              <Field label="空車開始日時" required>
-                <input type="datetime-local" name="available_from" value={form.available_from} onChange={handleChange} required className={inputCls} />
-              </Field>
-              <Field label="空車終了日時" required>
-                <input type="datetime-local" name="available_until" value={form.available_until} onChange={handleChange} required className={inputCls} />
-              </Field>
+        {/* ── Section ── */}
+        <Section title="車両 · ドライバー">
+          <Row label="車両" required>
+            <div className={wrapCls}>
+              <select name="vehicle_id" value={form.vehicle_id} onChange={(e) => set('vehicle_id', e.target.value)} required className={selectCls} style={{ backgroundColor: '#0f172a' }}>
+                <option value="">選択してください</option>
+                {vehicles.map((v) => <option key={v.id} value={v.id}>{v.plate_number} — {v.vehicle_type}</option>)}
+              </select>
             </div>
-          </div>
+          </Row>
+          <Row label="ドライバー" required>
+            <div className={wrapCls}>
+              <select name="driver_id" value={form.driver_id} onChange={(e) => set('driver_id', e.target.value)} required className={selectCls} style={{ backgroundColor: '#0f172a' }}>
+                <option value="">選択してください</option>
+                {drivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          </Row>
+        </Section>
 
-          {/* Section: 荷物種別 */}
-          <div className="p-6 space-y-4">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">対応可能な荷物種別</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {cargoTypes.map((ct) => (
+        {/* ── Section ── */}
+        <Section title="空き情報">
+          <Row label="都道府県" required>
+            <div className={wrapCls}>
+              <select name="prefecture" value={form.prefecture} onChange={(e) => set('prefecture', e.target.value)} required className={selectCls} style={{ backgroundColor: '#0f172a' }}>
+                <option value="">選択してください</option>
+                {PREFECTURES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </Row>
+          <Row label="積載可能重量 (kg)" required>
+            <div className={wrapCls}>
+              <input type="number" value={form.available_load_kg} onChange={(e) => set('available_load_kg', e.target.value)} required min={1} placeholder="例: 2000" className={inputCls} />
+            </div>
+          </Row>
+          <Row label="空車開始日時" required>
+            <div className={wrapCls}>
+              <input type="datetime-local" value={form.available_from} onChange={(e) => set('available_from', e.target.value)} required className={inputCls} />
+            </div>
+          </Row>
+          <Row label="空車終了日時" required>
+            <div className={wrapCls}>
+              <input type="datetime-local" value={form.available_until} onChange={(e) => set('available_until', e.target.value)} required className={inputCls} />
+            </div>
+          </Row>
+        </Section>
+
+        {/* ── Section ── */}
+        <Section title="対応可能な荷物種別">
+          <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {cargoTypes.map((ct) => {
+              const checked = selectedCargo.includes(ct.id);
+              return (
                 <label
                   key={ct.id}
-                  className={`flex items-center gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedCargo.includes(ct.id)
-                      ? 'bg-blue-50 border-blue-400 text-blue-800'
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
+                  className="flex items-center gap-2 px-3 py-2.5 cursor-pointer text-sm font-medium transition-colors"
+                  style={{
+                    border: `1px solid ${checked ? '#f59e0b' : '#334155'}`,
+                    backgroundColor: checked ? '#78350f' : 'transparent',
+                    color: checked ? '#f59e0b' : '#94a3b8',
+                  }}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedCargo.includes(ct.id)}
-                    onChange={() => toggleCargo(ct.id)}
-                    className="accent-blue-600 w-4 h-4"
-                  />
-                  <span className="text-lg leading-none">{ct.icon}</span>
-                  <span className="text-sm font-medium">{ct.name}</span>
+                  <input type="checkbox" checked={checked} onChange={() => toggleCargo(ct.id)} className="sr-only" />
+                  <span>{ct.icon}</span>
+                  <span>{ct.name}</span>
                 </label>
-              ))}
+              );
+            })}
+          </div>
+        </Section>
+
+        {/* ── Section ── */}
+        <Section title="備考（任意）">
+          <div className="px-4 py-3">
+            <div className={wrapCls}>
+              <textarea value={form.note} onChange={(e) => set('note', e.target.value)} rows={3} placeholder="特記事項があれば入力（任意）" className={inputCls} />
             </div>
           </div>
+        </Section>
 
-          {/* Section: 備考 */}
-          <div className="p-6 space-y-4">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">備考</h2>
-            <textarea
-              name="note"
-              value={form.note}
-              onChange={handleChange}
-              rows={3}
-              placeholder="特記事項があれば入力してください（任意）"
-              className={inputCls}
-            />
-          </div>
-
-          {/* Submit */}
-          <div className="p-6 bg-slate-50 flex flex-col sm:flex-row gap-3">
-            <button
-              type="submit"
-              disabled={submitting || success}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-            >
-              {submitting ? <><Spinner />登録中…</> : '登録する'}
-            </button>
-            <Link
-              href="/slots"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-slate-300 text-slate-600 font-medium hover:bg-slate-100 transition-colors"
-            >
-              キャンセル
-            </Link>
-          </div>
-        </form>
-      )}
+        {/* Submit */}
+        <div className="flex gap-3 px-4 py-4" style={{ backgroundColor: '#1e293b', borderTop: '1px solid #334155' }}>
+          <button
+            type="submit"
+            disabled={submitting || success}
+            className="flex-1 inline-flex items-center justify-center gap-2 py-3 text-base font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-slate-900"
+          >
+            {submitting && <Spinner />}
+            {submitting ? '登録中…' : '登録する'}
+          </button>
+          <Link href="/slots" className="px-6 py-3 text-sm font-medium transition-colors text-center" style={{ border: '1px solid #475569', color: '#94a3b8' }}>
+            キャンセル
+          </Link>
+        </div>
+      </form>
     </div>
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-semibold text-slate-700">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      {children}
+    <div style={{ borderBottom: '1px solid #334155' }}>
+      <div className="px-4 py-2" style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155' }}>
+        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#64748b' }}>{title}</span>
+      </div>
+      <div className="divide-y" style={{ divideColor: '#1e293b' }}>
+        {children}
+      </div>
     </div>
   );
 }
 
-const inputCls = 'w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-colors placeholder:text-slate-400';
-const selectCls = inputCls;
+function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[160px_1fr] items-center" style={{ borderBottom: '1px solid #1e293b' }}>
+      <div className="px-4 py-3 self-stretch flex items-center" style={{ backgroundColor: '#131e2e', borderRight: '1px solid #334155' }}>
+        <span className="text-sm font-medium" style={{ color: '#94a3b8' }}>
+          {label}
+          {required && <span style={{ color: '#f59e0b' }} className="ml-1">*</span>}
+        </span>
+      </div>
+      <div className="px-4 py-2">{children}</div>
+    </div>
+  );
+}

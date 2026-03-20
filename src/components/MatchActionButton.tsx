@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 function Spinner() {
   return (
-    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+    <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
     </svg>
@@ -27,13 +27,6 @@ export function MatchActionButton({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const base =
-    'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 min-w-[72px]';
-  const styles =
-    variant === 'primary'
-      ? `${base} bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-sm`
-      : `${base} bg-white text-red-600 border border-red-300 hover:bg-red-50 active:scale-95`;
-
   async function handleClick() {
     setLoading(true);
     setError('');
@@ -49,20 +42,23 @@ export function MatchActionButton({
       }
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'エラーが発生しました');
+      setError(err instanceof Error ? err.message : 'エラー');
       setLoading(false);
     }
   }
 
+  const base = 'inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed min-w-[88px]';
+  const styles = variant === 'primary'
+    ? `${base} border-2 border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-slate-900`
+    : `${base} border border-slate-600 text-slate-400 hover:border-red-500 hover:text-red-400`;
+
   return (
-    <div className="flex flex-col items-stretch gap-1">
+    <div>
       <button onClick={handleClick} disabled={loading} className={styles}>
-        {loading ? <Spinner /> : null}
-        {loading ? (action === 'confirm' ? '確定中...' : 'キャンセル中...') : label}
+        {loading && <Spinner />}
+        {loading ? (action === 'confirm' ? '処理中' : '処理中') : label}
       </button>
-      {error && (
-        <p className="text-xs text-red-600 text-center">{error}</p>
-      )}
+      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
     </div>
   );
 }

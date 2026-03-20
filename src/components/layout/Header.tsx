@@ -3,57 +3,32 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const NAV_LINKS = [
+const NAV = [
   { href: '/dashboard', label: 'ダッシュボード' },
-  { href: '/slots',     label: '空車管理' },
-  { href: '/shipments', label: '荷物管理' },
+  { href: '/slots',     label: '空車' },
+  { href: '/shipments', label: '荷物' },
 ];
 
 export default function Header() {
   const pathname = usePathname();
-
   return (
-    <header className="bg-blue-700 text-white shadow-lg sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="flex items-center justify-between h-14">
-          {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg tracking-wide hover:opacity-90 transition-opacity">
-            <span className="text-xl">🚛</span>
-            <span>FreightMatch</span>
-          </Link>
-
-          {/* Desktop nav */}
-          <nav className="hidden sm:flex items-center gap-1">
-            {NAV_LINKS.map(({ href, label }) => {
-              const active = pathname.startsWith(href);
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                    active
-                      ? 'bg-blue-600 text-white'
-                      : 'text-blue-100 hover:bg-blue-600 hover:text-white'
-                  }`}
-                >
-                  {label}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* Mobile nav */}
-        <nav className="sm:hidden flex border-t border-blue-600">
-          {NAV_LINKS.map(({ href, label }) => {
+    <header style={{ backgroundColor: '#0f172a', borderBottom: '1px solid #334155' }}>
+      <div className="max-w-6xl mx-auto px-4 flex items-center gap-8 h-14">
+        <Link href="/dashboard" className="text-base font-bold tracking-widest uppercase" style={{ color: '#f59e0b' }}>
+          FreightMatch
+        </Link>
+        <nav className="flex items-center gap-1">
+          {NAV.map(({ href, label }) => {
             const active = pathname.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex-1 text-center py-2 text-xs font-medium transition-colors ${
-                  active ? 'bg-blue-600 text-white' : 'text-blue-100 hover:bg-blue-600'
-                }`}
+                className="px-3 py-1.5 text-sm font-medium transition-colors"
+                style={{
+                  color: active ? '#f59e0b' : '#94a3b8',
+                  borderBottom: active ? '2px solid #f59e0b' : '2px solid transparent',
+                }}
               >
                 {label}
               </Link>

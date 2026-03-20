@@ -6,26 +6,22 @@ import { ja } from 'date-fns/locale';
 
 const JST = 'Asia/Tokyo';
 
-const TABS: { label: string; value: SlotStatus | 'all'; icon: string }[] = [
-  { label: 'すべて',   value: 'all',     icon: '📋' },
-  { label: '空車',     value: 'open',    icon: '🟢' },
-  { label: 'マッチ済', value: 'matched', icon: '🔵' },
-  { label: '期限切れ', value: 'expired', icon: '⚪' },
-  { label: 'クローズ', value: 'closed',  icon: '🔴' },
+const TABS: { label: string; value: SlotStatus | 'all' }[] = [
+  { label: 'すべて',   value: 'all' },
+  { label: '空車',     value: 'open' },
+  { label: 'マッチ済', value: 'matched' },
+  { label: '期限切れ', value: 'expired' },
+  { label: 'クローズ', value: 'closed' },
 ];
 
-const STATUS_LABELS: Record<SlotStatus, string> = {
-  open:    '空車',
-  matched: 'マッチ済',
-  expired: '期限切れ',
-  closed:  'クローズ',
+const STATUS_LABEL: Record<SlotStatus, string> = {
+  open: '空車', matched: 'マッチ済', expired: '期限切れ', closed: 'クローズ',
 };
-
-const STATUS_STYLES: Record<SlotStatus, string> = {
-  open:    'bg-green-100 text-green-800 border border-green-200',
-  matched: 'bg-blue-100 text-blue-800 border border-blue-200',
-  expired: 'bg-slate-100 text-slate-500 border border-slate-200',
-  closed:  'bg-red-100 text-red-700 border border-red-200',
+const STATUS_COLOR: Record<SlotStatus, { bg: string; text: string }> = {
+  open:    { bg: '#064e3b', text: '#34d399' },
+  matched: { bg: '#1e3a5f', text: '#60a5fa' },
+  expired: { bg: '#1e293b', text: '#94a3b8' },
+  closed:  { bg: '#3b0000', text: '#f87171' },
 };
 
 export default async function SlotsPage({
@@ -34,14 +30,14 @@ export default async function SlotsPage({
   searchParams: Promise<{ status?: string }>;
 }) {
   const { status } = await searchParams;
+  const activeTab = status ?? 'all';
   const supabase = createServiceRoleClient();
 
   let query = supabase
     .from('available_slots')
     .select('*, vehicle:vehicles(*), driver:users(*), cargo_types:slot_cargo_types(cargo_type:cargo_types(*))')
     .order('available_from', { ascending: true });
-
-  if (status && status !== 'all') query = query.eq('status', status as SlotStatus);
+  if (activeTab !== 'all') query = query.eq('status', activeTab as SlotStatus);
 
   const { data, error } = await query;
   const slots: AvailableSlot[] = ((data ?? []) as Record<string, unknown>[]).map((s) => ({
@@ -49,39 +45,33 @@ export default async function SlotsPage({
     cargo_types: ((s.cargo_types as { cargo_type: unknown }[]) ?? []).map((r) => r.cargo_type),
   })) as AvailableSlot[];
 
-  const activeTab = status ?? 'all';
-
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">空車管理</h1>
-          <p className="text-sm text-slate-500 mt-0.5">登録中の空車スロット一覧</p>
-        </div>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-white">空車管理</h1>
         <Link
           href="/slots/new"
-          className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
+          className="px-6 py-3 text-sm font-bold border-2 border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-slate-900 transition-colors"
         >
-          ＋ 空車を登録
+          ＋ 空車登録
         </Link>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="flex gap-0 overflow-x-auto" style={{ borderBottom: '1px solid #334155' }}>
         {TABS.map((tab) => {
           const active = activeTab === tab.value;
           return (
             <Link
               key={tab.value}
               href={`/slots?status=${tab.value}`}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                active
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
+              className="px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors"
+              style={{
+                color: active ? '#f59e0b' : '#94a3b8',
+                borderBottom: active ? '2px solid #f59e0b' : '2px solid transparent',
+              }}
             >
-              <span>{tab.icon}</span>
               {tab.label}
             </Link>
           );
@@ -90,65 +80,89 @@ export default async function SlotsPage({
 
       {/* Error */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+        <p className="text-sm px-4 py-3 text-red-400" style={{ border: '1px solid #7f1d1d', backgroundColor: '#1c0a0a' }}>
           エラー: {error.message}
-        </div>
+        </p>
       )}
 
-      {/* List */}
+      {/* Table */}
       {slots.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
-          <p className="text-4xl mb-3">🚛</p>
-          <p className="text-slate-600 font-medium">空車スロットがありません</p>
-          <p className="text-slate-400 text-sm mt-1 mb-4">空車を登録してマッチングを開始しましょう</p>
-          <Link
-            href="/slots/new"
-            className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
-          >
-            ＋ 空車を登録
-          </Link>
-        </div>
+        <p className="text-base py-16 text-center" style={{ color: '#94a3b8', border: '1px solid #334155' }}>
+          スロットがありません
+        </p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {slots.map((slot) => {
+        <div style={{ border: '1px solid #334155' }}>
+          {/* Header row */}
+          <div
+            className="hidden md:grid gap-4 px-4 py-2 text-xs font-bold uppercase tracking-wider"
+            style={{
+              gridTemplateColumns: '1fr 1fr 140px 80px 1fr',
+              backgroundColor: '#1e293b',
+              color: '#64748b',
+              borderBottom: '1px solid #334155',
+            }}
+          >
+            <span>ドライバー / 車両</span>
+            <span>都道府県 / 日時</span>
+            <span>積載可能</span>
+            <span>ステータス</span>
+            <span>対応荷物</span>
+          </div>
+
+          {slots.map((slot, i) => {
             const from  = format(toZonedTime(new Date(slot.available_from),  JST), 'M/d HH:mm', { locale: ja });
             const until = format(toZonedTime(new Date(slot.available_until), JST), 'M/d HH:mm', { locale: ja });
+            const sc = STATUS_COLOR[slot.status];
+            const last = i === slots.length - 1;
             return (
-              <div key={slot.id} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                {/* Status bar */}
-                <div className={`h-1 w-full ${slot.status === 'open' ? 'bg-green-500' : slot.status === 'matched' ? 'bg-blue-500' : 'bg-slate-300'}`} />
+              <div
+                key={slot.id}
+                className="grid grid-cols-1 md:grid-cols-[1fr_1fr_140px_80px_1fr] gap-3 md:gap-4 px-4 py-4 hover:opacity-90"
+                style={{ borderBottom: last ? 'none' : '1px solid #334155', backgroundColor: '#0f172a' }}
+              >
+                {/* Driver / Vehicle */}
+                <div>
+                  <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>ドライバー</p>
+                  <p className="text-base font-semibold text-white">{slot.driver?.name ?? '—'}</p>
+                  <p className="text-sm" style={{ color: '#94a3b8' }}>
+                    {slot.vehicle?.plate_number ?? '—'} · {slot.vehicle?.vehicle_type ?? '—'}
+                  </p>
+                </div>
 
-                <div className="p-4 space-y-3">
-                  {/* Top row */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-bold text-slate-800">{slot.driver?.name ?? '—'}</p>
-                      <p className="text-sm text-slate-500">
-                        {slot.vehicle?.plate_number ?? '—'} · {slot.vehicle?.vehicle_type ?? '—'}
-                      </p>
-                    </div>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_STYLES[slot.status]}`}>
-                      {STATUS_LABELS[slot.status]}
-                    </span>
-                  </div>
+                {/* Prefecture / Time */}
+                <div>
+                  <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>場所 / 日時</p>
+                  <p className="text-base font-semibold text-white">{slot.prefecture}</p>
+                  <p className="text-sm tabular-nums" style={{ color: '#94a3b8' }}>{from} 〜 {until}</p>
+                </div>
 
-                  {/* Info grid */}
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <InfoItem icon="📍" label="都道府県" value={slot.prefecture} />
-                    <InfoItem icon="⚖️" label="積載可能" value={`${slot.available_load_kg} kg`} />
-                    <InfoItem icon="🕐" label="開始" value={from} />
-                    <InfoItem icon="🕔" label="終了" value={until} />
-                  </div>
+                {/* Load */}
+                <div>
+                  <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>積載</p>
+                  <p className="text-base font-bold text-white tabular-nums">{slot.available_load_kg} <span className="text-sm font-normal" style={{ color: '#94a3b8' }}>kg</span></p>
+                </div>
 
-                  {/* Cargo types */}
-                  {slot.cargo_types && slot.cargo_types.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pt-1">
+                {/* Status */}
+                <div>
+                  <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>状態</p>
+                  <span className="text-xs font-bold px-2 py-1 inline-block" style={{ backgroundColor: sc.bg, color: sc.text }}>
+                    {STATUS_LABEL[slot.status]}
+                  </span>
+                </div>
+
+                {/* Cargo types */}
+                <div>
+                  <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>対応荷物</p>
+                  {slot.cargo_types && slot.cargo_types.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
                       {slot.cargo_types.map((ct) => (
-                        <span key={ct.id} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                        <span key={ct.id} className="text-xs px-1.5 py-0.5" style={{ backgroundColor: '#1e293b', color: '#94a3b8', border: '1px solid #334155' }}>
                           {ct.icon} {ct.name}
                         </span>
                       ))}
                     </div>
+                  ) : (
+                    <span className="text-sm" style={{ color: '#64748b' }}>指定なし</span>
                   )}
                 </div>
               </div>
@@ -156,18 +170,6 @@ export default async function SlotsPage({
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-function InfoItem({ icon, label, value }: { icon: string; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-1.5">
-      <span className="text-base leading-tight">{icon}</span>
-      <div>
-        <p className="text-xs text-slate-400">{label}</p>
-        <p className="font-medium text-slate-700">{value}</p>
-      </div>
     </div>
   );
 }

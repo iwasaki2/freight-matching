@@ -10,16 +10,18 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: 'FreightMatch — 配車マッチングシステム',
-  description: '空車と荷物をリアルタイムにマッチングするプラットフォーム',
+  title: 'FreightMatch',
+  description: '配車マッチングシステム',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja" className={`${notoSansJP.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-gray-50 font-[family-name:var(--font-noto-sans-jp)]">
+    <html lang="ja" className={`${notoSansJP.variable} h-full`}>
+      <body className="min-h-full flex flex-col font-[family-name:var(--font-noto-sans-jp)] antialiased">
         <Header />
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-6">{children}</main>
+        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+          {children}
+        </main>
       </body>
     </html>
   );

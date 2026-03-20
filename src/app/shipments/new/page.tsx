@@ -18,32 +18,31 @@ const PREFECTURES = [
 
 function Spinner() {
   return (
-    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+    <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
     </svg>
   );
 }
 
+const inputCls = 'w-full px-3 py-2.5 text-base text-white bg-transparent focus:outline-none focus:ring-0 placeholder:text-slate-600';
+const wrapCls = 'border border-slate-600 focus-within:border-amber-500 transition-colors';
+const selectCls = `${inputCls} appearance-none`;
+
 export default function NewShipmentPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  const [shippers, setShippers] = useState<Shipper[]>([]);
+  const [shippers, setShippers]     = useState<Shipper[]>([]);
   const [cargoTypes, setCargoTypes] = useState<CargoType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [error, setError]           = useState('');
+  const [success, setSuccess]       = useState(false);
 
   const [form, setForm] = useState({
-    shipper_id: '',
-    cargo_type_id: '',
-    prefecture: '',
-    pickup_time: '',
-    weight_kg: '',
-    destination: '',
-    note: '',
+    shipper_id: '', cargo_type_id: '', prefecture: '',
+    pickup_time: '', weight_kg: '', destination: '', note: '',
   });
 
   useEffect(() => {
@@ -53,12 +52,12 @@ export default function NewShipmentPage() {
     ]).then(([s, c]) => {
       setShippers((s.data ?? []) as Shipper[]);
       setCargoTypes((c.data ?? []) as CargoType[]);
-      setLoading(false);
+      setDataLoading(false);
     });
   }, [supabase]);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  function set(name: string, value: string) {
+    setForm((p) => ({ ...p, [name]: value }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -67,23 +66,19 @@ export default function NewShipmentPage() {
     setError('');
     try {
       const pickupTimeJst = form.pickup_time ? `${form.pickup_time}:00+09:00` : '';
-      const payload = {
-        ...form,
-        pickup_time: pickupTimeJst,
-        cargo_type_id: Number(form.cargo_type_id),
-        weight_kg: Number(form.weight_kg),
-      };
       const res = await fetch('/api/shipments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...form,
+          pickup_time: pickupTimeJst,
+          cargo_type_id: Number(form.cargo_type_id),
+          weight_kg: Number(form.weight_kg),
+        }),
       });
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.error ?? 'エラーが発生しました');
-      }
+      if (!res.ok) { const b = await res.json(); throw new Error(b.error ?? 'エラー'); }
       setSuccess(true);
-      setTimeout(() => router.push('/shipments'), 1200);
+      setTimeout(() => router.push('/shipments'), 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました');
     } finally {
@@ -91,154 +86,134 @@ export default function NewShipmentPage() {
     }
   }
 
+  if (dataLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
+        <Spinner /><span>読み込み中…</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/shipments" className="text-slate-400 hover:text-slate-600 transition-colors">
-          ← 戻る
+    <div className="max-w-2xl space-y-8">
+      {/* Page header */}
+      <div className="flex items-center gap-4" style={{ borderBottom: '1px solid #334155', paddingBottom: '1rem' }}>
+        <Link href="/shipments" className="text-sm font-medium transition-colors" style={{ color: '#64748b' }}>
+          ← 荷物一覧
         </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">荷物登録</h1>
-          <p className="text-sm text-slate-500 mt-0.5">配送依頼を登録してドライバーとマッチングします</p>
-        </div>
+        <h1 className="text-2xl font-bold text-white">荷物登録</h1>
       </div>
 
-      {/* Success banner */}
+      {/* Feedback */}
       {success && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 text-green-800">
-          <span className="text-xl">✅</span>
-          <p className="font-semibold">登録完了！一覧ページへ移動します…</p>
+        <div className="px-4 py-3 text-sm font-bold" style={{ backgroundColor: '#064e3b', color: '#34d399', border: '1px solid #065f46' }}>
+          ✓ 登録完了。一覧へ移動します…
         </div>
       )}
-
-      {/* Error banner */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3 text-red-700">
-          <span className="text-xl shrink-0">⚠️</span>
-          <div>
-            <p className="font-semibold">登録に失敗しました</p>
-            <p className="text-sm mt-0.5">{error}</p>
-          </div>
+        <div className="px-4 py-3 text-sm" style={{ backgroundColor: '#1c0a0a', color: '#f87171', border: '1px solid #7f1d1d' }}>
+          ⚠ {error}
         </div>
       )}
 
-      {/* Form */}
-      {loading ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-10 flex items-center justify-center gap-3 text-slate-500">
-          <Spinner /><span>読み込み中…</span>
+      <form onSubmit={handleSubmit} className="space-y-0" style={{ border: '1px solid #334155' }}>
+
+        {/* ── 依頼情報 ── */}
+        <Section title="依頼情報">
+          <Row label="荷主" required>
+            <div className={wrapCls}>
+              <select name="shipper_id" value={form.shipper_id} onChange={(e) => set('shipper_id', e.target.value)} required className={selectCls} style={{ backgroundColor: '#0f172a' }}>
+                <option value="">選択してください</option>
+                {shippers.map((s) => <option key={s.id} value={s.id}>{s.company}</option>)}
+              </select>
+            </div>
+          </Row>
+          <Row label="荷物種別" required>
+            <div className={wrapCls}>
+              <select name="cargo_type_id" value={form.cargo_type_id} onChange={(e) => set('cargo_type_id', e.target.value)} required className={selectCls} style={{ backgroundColor: '#0f172a' }}>
+                <option value="">選択してください</option>
+                {cargoTypes.map((ct) => <option key={ct.id} value={ct.id}>{ct.icon} {ct.name}</option>)}
+              </select>
+            </div>
+          </Row>
+        </Section>
+
+        {/* ── 配送情報 ── */}
+        <Section title="配送情報">
+          <Row label="集荷都道府県" required>
+            <div className={wrapCls}>
+              <select name="prefecture" value={form.prefecture} onChange={(e) => set('prefecture', e.target.value)} required className={selectCls} style={{ backgroundColor: '#0f172a' }}>
+                <option value="">選択してください</option>
+                {PREFECTURES.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </Row>
+          <Row label="集荷予定日時" required>
+            <div className={wrapCls}>
+              <input type="datetime-local" value={form.pickup_time} onChange={(e) => set('pickup_time', e.target.value)} required className={inputCls} />
+            </div>
+          </Row>
+          <Row label="配送先" required>
+            <div className={wrapCls}>
+              <input type="text" value={form.destination} onChange={(e) => set('destination', e.target.value)} required placeholder="例：大阪府大阪市北区" className={inputCls} />
+            </div>
+          </Row>
+          <Row label="重量 (kg)" required>
+            <div className={wrapCls}>
+              <input type="number" value={form.weight_kg} onChange={(e) => set('weight_kg', e.target.value)} required min={1} placeholder="例: 500" className={inputCls} />
+            </div>
+          </Row>
+        </Section>
+
+        {/* ── 備考 ── */}
+        <Section title="備考（任意）">
+          <div className="px-4 py-3">
+            <div className={wrapCls}>
+              <textarea value={form.note} onChange={(e) => set('note', e.target.value)} rows={3} placeholder="特記事項があれば入力（任意）" className={inputCls} />
+            </div>
+          </div>
+        </Section>
+
+        {/* Submit */}
+        <div className="flex gap-3 px-4 py-4" style={{ backgroundColor: '#1e293b', borderTop: '1px solid #334155' }}>
+          <button
+            type="submit"
+            disabled={submitting || success}
+            className="flex-1 inline-flex items-center justify-center gap-2 py-3 text-base font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-slate-900"
+          >
+            {submitting && <Spinner />}
+            {submitting ? '登録中…' : '登録する'}
+          </button>
+          <Link href="/shipments" className="px-6 py-3 text-sm font-medium transition-colors text-center" style={{ border: '1px solid #475569', color: '#94a3b8' }}>
+            キャンセル
+          </Link>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl shadow-sm divide-y divide-slate-100">
-          {/* Section: 依頼情報 */}
-          <div className="p-6 space-y-5">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">依頼情報</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="荷主" required>
-                <select name="shipper_id" value={form.shipper_id} onChange={handleChange} required className={selectCls}>
-                  <option value="">選択してください</option>
-                  {shippers.map((s) => (
-                    <option key={s.id} value={s.id}>{s.company}</option>
-                  ))}
-                </select>
-                {shippers.length === 0 && <p className="text-xs text-amber-600 mt-1">荷主が登録されていません</p>}
-              </Field>
-              <Field label="荷物種別" required>
-                <select name="cargo_type_id" value={form.cargo_type_id} onChange={handleChange} required className={selectCls}>
-                  <option value="">選択してください</option>
-                  {cargoTypes.map((ct) => (
-                    <option key={ct.id} value={ct.id}>{ct.icon} {ct.name}</option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          </div>
-
-          {/* Section: 配送情報 */}
-          <div className="p-6 space-y-5">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">配送情報</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Field label="集荷都道府県" required>
-                <select name="prefecture" value={form.prefecture} onChange={handleChange} required className={selectCls}>
-                  <option value="">選択してください</option>
-                  {PREFECTURES.map((p) => <option key={p} value={p}>{p}</option>)}
-                </select>
-              </Field>
-              <Field label="集荷予定日時" required>
-                <input type="datetime-local" name="pickup_time" value={form.pickup_time} onChange={handleChange} required className={inputCls} />
-              </Field>
-              <Field label="配送先" required>
-                <input
-                  type="text"
-                  name="destination"
-                  value={form.destination}
-                  onChange={handleChange}
-                  required
-                  placeholder="例：大阪府大阪市北区"
-                  className={inputCls}
-                />
-              </Field>
-              <Field label="重量 (kg)" required>
-                <input
-                  type="number"
-                  name="weight_kg"
-                  value={form.weight_kg}
-                  onChange={handleChange}
-                  required
-                  min={1}
-                  placeholder="例: 500"
-                  className={inputCls}
-                />
-              </Field>
-            </div>
-          </div>
-
-          {/* Section: 備考 */}
-          <div className="p-6 space-y-4">
-            <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider">備考</h2>
-            <textarea
-              name="note"
-              value={form.note}
-              onChange={handleChange}
-              rows={3}
-              placeholder="特記事項があれば入力してください（任意）"
-              className={inputCls}
-            />
-          </div>
-
-          {/* Submit */}
-          <div className="p-6 bg-slate-50 flex flex-col sm:flex-row gap-3">
-            <button
-              type="submit"
-              disabled={submitting || success}
-              className="flex-1 inline-flex items-center justify-center gap-2 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm"
-            >
-              {submitting ? <><Spinner />登録中…</> : '登録する'}
-            </button>
-            <Link
-              href="/shipments"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-slate-300 text-slate-600 font-medium hover:bg-slate-100 transition-colors"
-            >
-              キャンセル
-            </Link>
-          </div>
-        </form>
-      )}
+      </form>
     </div>
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      <label className="block text-sm font-semibold text-slate-700">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
+    <div style={{ borderBottom: '1px solid #334155' }}>
+      <div className="px-4 py-2" style={{ backgroundColor: '#1e293b', borderBottom: '1px solid #334155' }}>
+        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#64748b' }}>{title}</span>
+      </div>
       {children}
     </div>
   );
 }
 
-const inputCls = 'w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-colors placeholder:text-slate-400';
-const selectCls = inputCls;
+function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[160px_1fr] items-center" style={{ borderBottom: '1px solid #1e293b' }}>
+      <div className="px-4 py-3 self-stretch flex items-center" style={{ backgroundColor: '#131e2e', borderRight: '1px solid #334155' }}>
+        <span className="text-sm font-medium" style={{ color: '#94a3b8' }}>
+          {label}
+          {required && <span style={{ color: '#f59e0b' }} className="ml-1">*</span>}
+        </span>
+      </div>
+      <div className="px-4 py-2">{children}</div>
+    </div>
+  );
+}

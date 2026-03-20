@@ -9,29 +9,23 @@ const JST = 'Asia/Tokyo';
 
 async function getStats() {
   const supabase = createServiceRoleClient();
-  const [pendingMatches, waitingShipments, openSlots] = await Promise.all([
+  const [a, b, c] = await Promise.all([
     supabase.from('matches').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
     supabase.from('shipments').select('id', { count: 'exact', head: true }).eq('status', 'waiting'),
     supabase.from('available_slots').select('id', { count: 'exact', head: true }).eq('status', 'open'),
   ]);
-  return {
-    pendingCount: pendingMatches.count ?? 0,
-    waitingCount: waitingShipments.count ?? 0,
-    openCount: openSlots.count ?? 0,
-  };
+  return { pending: a.count ?? 0, waiting: b.count ?? 0, open: c.count ?? 0 };
 }
 
 async function getPendingMatches(): Promise<Match[]> {
   const supabase = createServiceRoleClient();
   const { data } = await supabase
     .from('matches')
-    .select(
-      `*, slot:available_slots(*, driver:users(*), vehicle:vehicles(*)),
-       shipment:shipments(*, cargo_type:cargo_types(*), shipper:shippers(*))`,
-    )
+    .select(`*, slot:available_slots(*, driver:users(*), vehicle:vehicles(*)),
+             shipment:shipments(*, cargo_type:cargo_types(*), shipper:shippers(*))`)
     .eq('status', 'pending')
     .order('score', { ascending: false })
-    .limit(20);
+    .limit(30);
   return (data ?? []) as Match[];
 }
 
@@ -39,78 +33,51 @@ export default async function DashboardPage() {
   const [stats, matches] = await Promise.all([getStats(), getPendingMatches()]);
 
   return (
-    <div className="space-y-8">
-      {/* Page header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">ダッシュボード</h1>
-        <p className="text-sm text-slate-500 mt-1">配車マッチングの状況を確認できます</p>
+    <div className="space-y-10">
+      {/* ─── KPI bar ─── */}
+      <div className="grid grid-cols-3 divide-x" style={{ border: '1px solid #334155', divideColor: '#334155' }}>
+        <KpiCell label="確認待ち" value={stats.pending} accent href="/dashboard" />
+        <KpiCell label="未マッチ荷物" value={stats.waiting} href="/shipments?status=waiting" />
+        <KpiCell label="空車スロット" value={stats.open} href="/slots?status=open" />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          label="確認待ちマッチング"
-          value={stats.pendingCount}
-          icon="🔔"
-          color="bg-amber-50 border-amber-200"
-          valueColor="text-amber-700"
-          href="/dashboard"
-        />
-        <StatCard
-          label="未マッチ荷物"
-          value={stats.waitingCount}
-          icon="📦"
-          color="bg-red-50 border-red-200"
-          valueColor="text-red-700"
-          href="/shipments?status=waiting"
-        />
-        <StatCard
-          label="空車スロット"
-          value={stats.openCount}
-          icon="🚛"
-          color="bg-green-50 border-green-200"
-          valueColor="text-green-700"
-          href="/slots?status=open"
-        />
-      </div>
-
-      {/* Quick actions */}
-      <div className="flex flex-wrap gap-3">
-        <Link
-          href="/slots/new"
-          className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
-        >
-          <span>＋</span> 空車を登録
+      {/* ─── Quick actions ─── */}
+      <div className="flex gap-3">
+        <Link href="/slots/new" className="px-6 py-3 text-sm font-bold border-2 border-amber-500 text-amber-400 hover:bg-amber-500 hover:text-slate-900 transition-colors">
+          ＋ 空車登録
         </Link>
-        <Link
-          href="/shipments/new"
-          className="inline-flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-slate-50 active:scale-95 transition-all shadow-sm"
-        >
-          <span>＋</span> 荷物を登録
+        <Link href="/shipments/new" className="px-6 py-3 text-sm font-bold border border-slate-600 text-slate-300 hover:border-slate-400 hover:text-white transition-colors">
+          ＋ 荷物登録
         </Link>
       </div>
 
-      {/* Pending matches */}
+      {/* ─── Pending matches ─── */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-700">確認待ちマッチング</h2>
+        <div className="flex items-baseline gap-3 mb-4">
+          <h2 className="text-lg font-bold text-white">確認待ちマッチング</h2>
           {matches.length > 0 && (
-            <span className="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">
+            <span className="text-xs font-bold px-2 py-0.5" style={{ backgroundColor: '#78350f', color: '#f59e0b' }}>
               {matches.length} 件
             </span>
           )}
         </div>
 
         {matches.length === 0 ? (
-          <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
-            <p className="text-4xl mb-3">✅</p>
-            <p className="text-slate-600 font-medium">確認待ちのマッチングはありません</p>
-            <p className="text-slate-400 text-sm mt-1">新しい荷物・空車を登録するとマッチングが始まります</p>
-          </div>
+          <p className="text-base py-10 text-center" style={{ color: '#94a3b8', border: '1px solid #334155' }}>
+            確認待ちのマッチングはありません
+          </p>
         ) : (
-          <div className="space-y-3">
-            {matches.map((match) => (
-              <MatchCard key={match.id} match={match} />
+          <div style={{ border: '1px solid #334155' }}>
+            {/* Table header */}
+            <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_120px_140px] gap-4 px-4 py-2 text-xs font-bold uppercase tracking-wider" style={{ backgroundColor: '#1e293b', color: '#64748b', borderBottom: '1px solid #334155' }}>
+              <span>荷物情報</span>
+              <span>ルート</span>
+              <span>ドライバー / 車両</span>
+              <span>集荷日時</span>
+              <span>アクション</span>
+            </div>
+            {matches.map((match, i) => (
+              <MatchRow key={match.id} match={match} last={i === matches.length - 1} />
             ))}
           </div>
         )}
@@ -119,76 +86,73 @@ export default async function DashboardPage() {
   );
 }
 
-function StatCard({
-  label, value, icon, color, valueColor, href,
-}: {
-  label: string; value: number; icon: string;
-  color: string; valueColor: string; href: string;
-}) {
+function KpiCell({ label, value, accent, href }: { label: string; value: number; accent?: boolean; href: string }) {
   return (
-    <Link href={href} className={`block rounded-xl border p-5 hover:shadow-md transition-shadow ${color}`}>
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-slate-600">{label}</p>
-        <span className="text-2xl">{icon}</span>
-      </div>
-      <p className={`text-4xl font-bold mt-2 ${valueColor}`}>{value}</p>
-      <p className="text-xs text-slate-400 mt-1">タップして一覧を見る</p>
+    <Link href={href} className="block px-6 py-5 hover:opacity-80 transition-opacity" style={{ backgroundColor: '#1e293b' }}>
+      <p className="text-xs uppercase tracking-widest mb-2" style={{ color: '#64748b' }}>{label}</p>
+      <p className="text-5xl font-black tabular-nums" style={{ color: accent ? '#f59e0b' : '#f1f5f9' }}>
+        {value}
+      </p>
     </Link>
   );
 }
 
-function MatchCard({ match }: { match: Match }) {
+function MatchRow({ match, last }: { match: Match; last: boolean }) {
   const pickupTime = match.shipment?.pickup_time
-    ? format(toZonedTime(new Date(match.shipment.pickup_time), JST), 'M月d日 HH:mm', { locale: ja })
+    ? format(toZonedTime(new Date(match.shipment.pickup_time), JST), 'M/d HH:mm', { locale: ja })
     : '—';
 
   const score = match.score ?? 0;
-  const scoreColor =
-    score >= 70 ? 'text-green-600 bg-green-50' :
-    score >= 40 ? 'text-amber-600 bg-amber-50' :
-                  'text-slate-500 bg-slate-100';
+  const scoreColor = score >= 70 ? '#4ade80' : score >= 40 ? '#f59e0b' : '#94a3b8';
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
-      {/* Card header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100">
-        <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-          <span>{match.shipment?.cargo_type?.icon}</span>
-          <span>{match.shipment?.cargo_type?.name ?? '—'}</span>
-          <span className="text-slate-400 font-normal">|</span>
-          <span className="text-slate-500 font-normal text-xs">集荷: {pickupTime}</span>
-        </div>
-        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${scoreColor}`}>
+    <div
+      className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_120px_140px] gap-3 md:gap-4 px-4 py-4 hover:opacity-90 transition-opacity"
+      style={{
+        borderBottom: last ? 'none' : '1px solid #334155',
+        backgroundColor: '#0f172a',
+      }}
+    >
+      {/* 荷物情報 */}
+      <div>
+        <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>荷物</p>
+        <p className="text-base font-semibold text-white">
+          {match.shipment?.cargo_type?.icon} {match.shipment?.cargo_type?.name ?? '—'}
+        </p>
+        <p className="text-sm" style={{ color: '#94a3b8' }}>{match.shipment?.shipper?.company ?? '—'}</p>
+        <p className="text-xs mt-1 font-mono" style={{ color: scoreColor }}>
           スコア {score.toFixed(0)}
-        </span>
+        </p>
       </div>
 
-      {/* Card body */}
-      <div className="px-4 py-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-          {/* Route */}
-          <div className="space-y-1">
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">ルート</p>
-            <p className="font-semibold text-slate-800">
-              {match.shipment?.prefecture} → {match.shipment?.destination}
-            </p>
-            <p className="text-slate-500 text-xs">荷主: {match.shipment?.shipper?.company ?? '—'}</p>
-          </div>
-          {/* Driver */}
-          <div className="space-y-1">
-            <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">ドライバー / 車両</p>
-            <p className="font-semibold text-slate-800">{match.slot?.driver?.name ?? '—'}</p>
-            <p className="text-slate-500 text-xs">
-              {match.slot?.vehicle?.plate_number ?? '—'} ({match.slot?.vehicle?.vehicle_type ?? '—'})
-            </p>
-          </div>
-        </div>
+      {/* ルート */}
+      <div>
+        <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>ルート</p>
+        <p className="text-base font-semibold text-white">
+          {match.shipment?.prefecture}
+        </p>
+        <p className="text-sm" style={{ color: '#94a3b8' }}>→ {match.shipment?.destination}</p>
+      </div>
 
-        {/* Actions */}
-        <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100">
-          <MatchActionButton matchId={match.id} action="confirm" label="確定する" variant="primary" />
-          <MatchActionButton matchId={match.id} action="cancel" label="却下する" variant="danger" />
-        </div>
+      {/* ドライバー */}
+      <div>
+        <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>ドライバー</p>
+        <p className="text-base font-semibold text-white">{match.slot?.driver?.name ?? '—'}</p>
+        <p className="text-sm" style={{ color: '#94a3b8' }}>
+          {match.slot?.vehicle?.plate_number ?? '—'} · {match.slot?.vehicle?.vehicle_type ?? '—'}
+        </p>
+      </div>
+
+      {/* 集荷日時 */}
+      <div>
+        <p className="text-xs uppercase tracking-wide mb-1 md:hidden" style={{ color: '#64748b' }}>集荷</p>
+        <p className="text-base font-bold text-white tabular-nums">{pickupTime}</p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-start gap-2 flex-wrap">
+        <MatchActionButton matchId={match.id} action="confirm" label="確定" variant="primary" />
+        <MatchActionButton matchId={match.id} action="cancel" label="却下" variant="danger" />
       </div>
     </div>
   );
