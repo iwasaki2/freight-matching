@@ -1,6 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import Link from 'next/link';
 import { Match } from '@/types';
+import { MatchActionButton } from '@/components/MatchActionButton';
 import { format, toZonedTime } from 'date-fns-tz';
 import { ja } from 'date-fns/locale';
 
@@ -100,43 +100,10 @@ function MatchCard({ match }: { match: Match }) {
         </p>
       </div>
       <div className="flex gap-2 shrink-0">
-        <ActionButton matchId={match.id} action="confirm" label="確定" variant="primary" />
-        <ActionButton matchId={match.id} action="cancel" label="却下" variant="danger" />
+        <MatchActionButton matchId={match.id} action="confirm" label="確定" variant="primary" />
+        <MatchActionButton matchId={match.id} action="cancel" label="却下" variant="danger" />
       </div>
     </div>
   );
 }
 
-function ActionButton({
-  matchId,
-  action,
-  label,
-  variant,
-}: {
-  matchId: string;
-  action: string;
-  label: string;
-  variant: 'primary' | 'danger';
-}) {
-  const base = 'px-3 py-1.5 rounded text-sm font-medium transition-colors';
-  const styles =
-    variant === 'primary'
-      ? `${base} bg-blue-600 text-white hover:bg-blue-700`
-      : `${base} bg-red-100 text-red-700 hover:bg-red-200`;
-
-  return (
-    <form
-      action={async () => {
-        'use server';
-        const { createServiceRoleClient } = await import('@/lib/supabase/server');
-        const { confirmMatch, cancelMatch } = await import('@/lib/matching');
-        if (action === 'confirm') await confirmMatch(matchId);
-        if (action === 'cancel') await cancelMatch(matchId);
-      }}
-    >
-      <button type="submit" className={styles}>
-        {label}
-      </button>
-    </form>
-  );
-}
